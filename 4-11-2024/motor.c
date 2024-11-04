@@ -3,29 +3,26 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
+#include "esp_log.h"
+#include "i2c-lcd1602.h"
 
-// GPIO của các nút bấm và động cơ
-#define BUTTON1_PIN GPIO_NUM_21   
-#define BUTTON2_PIN GPIO_NUM_22   
-#define BUTTON3_PIN GPIO_NUM_23   
-#define ROTARY_A_PIN GPIO_NUM_25  
-#define ROTARY_B_PIN GPIO_NUM_26  
+// GPIO của các nút bấm, động cơ, và LCD I2C
+#define BUTTON1_PIN GPIO_NUM_21
+#define BUTTON2_PIN GPIO_NUM_22
+#define BUTTON3_PIN GPIO_NUM_23
+#define ROTARY_A_PIN GPIO_NUM_25
+#define ROTARY_B_PIN GPIO_NUM_26
 #define MOTOR_PIN_IN1 GPIO_NUM_18
 #define MOTOR_PIN_IN2 GPIO_NUM_19
-#define MOTOR_PIN_ENA GPIO_NUM_5  
+#define MOTOR_PIN_ENA GPIO_NUM_5
 
-// Các thông số PWM
-#define PWM_FREQ 1000
-#define PWM_CHANNEL LEDC_CHANNEL_0
-#define PWM_TIMER LEDC_TIMER_0
 
-// Trạng thái của hệ thống
 bool motor_on = false;
 bool direction_forward = true;
 bool speed_control_enabled = false;
-int motor_speed = 50; // Tốc độ ban đầu
+int motor_speed = 50; 
 
-// Khởi tạo PWM
+
 void motor_pwm_init(void) {
     ledc_timer_config_t pwm_timer = {
         .duty_resolution = LEDC_TIMER_8_BIT,
@@ -87,7 +84,7 @@ void handle_buttons() {
             printf("Motor OFF\n");
             set_motor_speed(0);
         }
-        vTaskDelay(200 / portTICK_PERIOD_MS); 
+        vTaskDelay(200 / portTICK_PERIOD_MS); // Khử rung
     }
 
     if (read_button(BUTTON2_PIN)) {
@@ -120,19 +117,4 @@ void handle_rotary_encoder() {
         set_motor_speed(motor_on ? motor_speed : 0);
     }
     last_a = a;
-}
-
-// Hàm chính
-void app_main(void) {
-    motor_gpio_init();
-    motor_pwm_init();
-
-    // Đặt chiều quay ban đầu
-    set_motor_direction(direction_forward);
-
-    while (1) {
-        handle_buttons();          
-        handle_rotary_encoder();   
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
 }

@@ -1,0 +1,28 @@
+{
+    "configurations": [
+      {
+        "name": "Linux",
+        "includePath": [
+          "${config:idf.espIdfPath}/components/**",
+          "${workspaceFolder}/**",
+          "${env:IDF_PATH}/components/**",
+          "${workspaceFolder}/**",
+  
+          "${config:idf.espIdfPath}/components/freertos/**"
+  
+          //"${config:idf.espIdfPath}/components/driver/include",
+  
+          //"${config:idf.espIdfPath}/components/esp_common/include",
+  
+          //"${config:idf.espIdfPath}/components/esp_system/include",
+          //"/home/nanachanuwu/ESP/esp-idf/components/freertos/FreeRTOS-Kernel/include"
+        ],
+        "browse": {
+          "path": ["${config:idf.espIdfPath}/components", "${workspaceFolder}"]
+        }
+        //"intelliSenseMode": "clang-x64"
+      }
+    ],
+    "version": 4
+  }
+  

@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "hello_world",
-    "project_version":    "9147ff1-dirty",
+    "project_version":    "499604a-dirty",
     "project_path":       "/home/nanachanuwu/CODE_LEARN_CODE_BLOCK/VXL/hello_world",
     "idf_path":           "/home/nanachanuwu/ESP/esp-idf",
     "build_dir":          "/home/nanachanuwu/CODE_LEARN_CODE_BLOCK/VXL/hello_world/build",

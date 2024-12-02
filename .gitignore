@@ -3,9 +3,11 @@
 *build/
 *.devcontainer
 *.bin
-/hello_world/build 
+/hello_world/build
+*.dockerfile
 *.json
-*.obj 
+*.obj
+*.cmake
 *.exe
 *.a
 *.S
@@ -18,5 +20,6 @@
 *.ci
 *.bin_timestamp
 *.ninja_deps
-*.ninja_log 
+*.ninja_log
 *.ninja
+setuptest.bat

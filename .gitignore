@@ -1,14 +1,11 @@
 *.vscode
 *.sln
 *build/
-*.txt
 *.devcontainer
 *.bin
 /hello_world/build 
-*.dockerfile 
 *.json
-*.obj
-*.cmake 
+*.obj 
 *.exe
 *.a
 *.S

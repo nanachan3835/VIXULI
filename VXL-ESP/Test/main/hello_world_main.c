@@ -1,3 +1,5 @@
+#ifndef TESTING
+
 /*
  * SPDX-FileCopyrightText: 2010-2022 Espressif Systems (Shanghai) CO LTD
  *
@@ -50,3 +52,4 @@ void app_main(void)
     fflush(stdout);
     esp_restart();
 }
+#endif

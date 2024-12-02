@@ -19,28 +19,28 @@ StateofMotor::StateofMotor(int button1, int button2, int button3,long speed,bool
 //     this->mode = mode;
 // }
 
-StateofMotor::setButton1(int button1)
+void StateofMotor::setButton1(int button1)
 {
     this->button1 = button1;
 }
 
-StateofMotor::setButton2(int button2)
+void StateofMotor::setButton2(int button2)
 {
     this->button2 = button2;
 }
 
-StateofMotor::setButton3(int button3)
+void StateofMotor::setButton3(int button3)
 {
     this->button3 = button3;
 }
 
 
-StateofMotor::setSpeed(long speed)
+void StateofMotor::setSpeed(long speed)
 {
     this->speed = speed;
 }
 
-StateofMotor::setDirection(bool direction)
+void StateofMotor::setDirection(bool direction)
 {
     this->direction = direction;
 }
@@ -50,27 +50,27 @@ StateofMotor::setDirection(bool direction)
 //     return mode;
 // }
 
-StateofMotor::getButton1()
+int StateofMotor::getButton1()
 {
     return button1;
 }
 
-StateofMotor::getButton2()
+int StateofMotor::getButton2()
 {
     return button2;
 }
 
-StateofMotor::getButton3()
+int StateofMotor::getButton3()
 {
     return button3;
 }
 
-StateofMotor::getSpeed()
+int StateofMotor::getSpeed()
 {
     return speed;
 }
 
-StateofMotor::getDirection()
+int StateofMotor::getDirection()
 {
     return direction;
 }
@@ -86,23 +86,23 @@ StateofMotor::getDirection()
 
 
 
-State::CheckButton1()
+int StateofMotor::CheckButton1()
 {
     return button1;
 }
-State::CheckButton2()
+int StateofMotor::CheckButton2()
 {
     return button2;
 }
-State::CheckButton3()
+int StateofMotor::CheckButton3()
 {
     return button3;
 }
-State::CheckSpeed()
+long StateofMotor::CheckSpeed()
 {
     return speed;
 }
-State::returnDirection()
+int StateofMotor::returnDirection()
 {
     if (this->direction == true)
     {

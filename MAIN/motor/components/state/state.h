@@ -21,11 +21,11 @@ class StateofMotor
     void setSpeed(long speed);
     void setDirection(bool direction);
     //void getMode();
-    void getButton1();
-    void getButton2();
-    void getButton3();
-    void getSpeed();
-    void getDirection();
+    int getButton1();
+    int getButton2();
+    int getButton3();
+    int getSpeed();
+    int getDirection();
     //int CheckMode();
     int CheckButton1();
     int CheckButton2();
@@ -34,7 +34,7 @@ class StateofMotor
     int returnDirection();
 
 
-}
+};
 
 
 #endif 

@@ -10,9 +10,9 @@
 
 // Cấu hình GPIO
 // GPIO điều khiển motor
-#define MOTOR_IN1_GPIO  25  // GPIO điều khiển hướng 1
-#define MOTOR_IN2_GPIO  26  // GPIO điều khiển hướng 2
-#define MOTOR_EN_GPIO   27  // GPIO điều chỉnh tốc độ (PWM)
+#define MOTOR_IN1_GPIO  GPIO_NUM_25//25  // GPIO điều khiển hướng 1
+#define MOTOR_IN2_GPIO  GPIO_NUM_26//26  // GPIO điều khiển hướng 2
+#define MOTOR_EN_GPIO   GPIO_NUM_27//27  // GPIO điều chỉnh tốc độ (PWM)
 
 
 //nut bam
@@ -30,8 +30,8 @@
 #define LEDC_RESOLUTION     LEDC_TIMER_8_BIT // Độ phân giải PWM: 8-bit
 
 //cau hinh num xoay
-#define ROTARY_CLK_GPIO 18 // GPIO cho tín hiệu CLK từ rotary encoder
-#define ROTARY_DT_GPIO  19 // GPIO cho tín hiệu DT từ rotary encoder    
+#define ROTARY_CLK_GPIO    GPIO_NUM_18     //18 // GPIO cho tín hiệu CLK từ rotary encoder
+#define ROTARY_DT_GPIO     GPIO_NUM_19   //19 // GPIO cho tín hiệu DT từ rotary encoder    
 //#define POT_PIN GPIO_NUM_34 
 volatile int speed_control_enabled = 1; // Cờ cho phép điều khiển tốc độ
 
@@ -54,10 +54,13 @@ volatile int last_clk_state = 0;
 void motor_control_init() {
     // Cấu hình Timer cho LEDC
     ledc_timer_config_t ledc_timer = {
+        //.duty_resolution  = LEDC_RESOLUTION,
         .speed_mode       = LEDC_MODE,
-        .timer_num        = LEDC_TIMER,
         .duty_resolution  = LEDC_RESOLUTION,
+        .timer_num        = LEDC_TIMER,
+        //.duty_resolution  = LEDC_RESOLUTION,
         .freq_hz          = LEDC_FREQUENCY,
+        //.duty_resolution  = LEDC_RESOLUTION,
         .clk_cfg          = LEDC_AUTO_CLK
     };
     ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
@@ -67,12 +70,17 @@ void motor_control_init() {
         .gpio_num       = LEDC_OUTPUT_IO,
         .speed_mode     = LEDC_MODE,
         .channel        = LEDC_CHANNEL,
+        .intr_type      = LEDC_INTR_DISABLE,
         .timer_sel      = LEDC_TIMER,
         .duty           = 0, // Bắt đầu với duty cycle 0
         .hpoint         = 0
     };
-    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
+     
 
+
+    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
+    ledc_timer_config(&ledc_timer);
+    ledc_channel_config(&ledc_channel);
     // Cấu hình GPIO điều khiển hướng
     gpio_set_direction(MOTOR_IN1_GPIO, GPIO_MODE_OUTPUT);
     gpio_set_direction(MOTOR_IN2_GPIO, GPIO_MODE_OUTPUT);
@@ -124,13 +132,10 @@ void motor_set_speed(int speed) {
 
 //khoi tao gpio cho nut bam
 void configure_button() {
-    gpio_pad_select_gpio(BUTTON_PIN_1);
     gpio_set_direction(BUTTON_PIN_1, GPIO_MODE_INPUT);
     gpio_set_pull_mode(BUTTON_PIN_1, GPIO_PULLUP_ONLY);
-    gpio_pad_select_gpio(BUTTON_PIN_2);
     gpio_set_direction(BUTTON_PIN_2, GPIO_MODE_INPUT);
     gpio_set_pull_mode(BUTTON_PIN_2, GPIO_PULLUP_ONLY);
-    gpio_pad_select_gpio(BUTTON_PIN_3);
     gpio_set_direction(BUTTON_PIN_3, GPIO_MODE_INPUT);
     gpio_set_pull_mode(BUTTON_PIN_3, GPIO_PULLUP_ONLY);
 }
@@ -152,7 +157,7 @@ int button1_logic()
         
 }
 
-void button2_logic()
+int button2_logic()
 {
     if (gpio_get_level(BUTTON_PIN_2) == 0)
     {
@@ -163,7 +168,7 @@ void button2_logic()
         return 0;
 }
 }
-void button3_logic()
+int button3_logic()
 {
     if (gpio_get_level(BUTTON_PIN_3) == 0)
     {
@@ -259,11 +264,13 @@ void event_handler()
         speed_control_enabled = 0;
         if (Motor_state_1.CheckButton2() == 1)
         {
-            motor_set_speed(motor_speed);   
+            motor_set_speed(motor_speed);
+            vTaskDelay(100 / portTICK_PERIOD_MS);   
         }
         else
         {
             motor_set_speed(0);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
         }
     }
     else
@@ -272,6 +279,7 @@ void event_handler()
         if (Motor_state_1.CheckButton2() == 1)
         {
             speed_control_enabled = 1;
+            vTaskDelay(100 / portTICK_PERIOD_MS);
         }
         else
         {

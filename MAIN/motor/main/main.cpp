@@ -5,6 +5,7 @@
 #include "driver/ledc.h"
 #include "esp_err.h"
 #include "state.h"
+#include "driver/adc.h"
 
 
 
@@ -54,13 +55,10 @@ volatile int last_clk_state = 0;
 void motor_control_init() {
     // Cấu hình Timer cho LEDC
     ledc_timer_config_t ledc_timer = {
-        //.duty_resolution  = LEDC_RESOLUTION,
         .speed_mode       = LEDC_MODE,
         .duty_resolution  = LEDC_RESOLUTION,
         .timer_num        = LEDC_TIMER,
-        //.duty_resolution  = LEDC_RESOLUTION,
         .freq_hz          = LEDC_FREQUENCY,
-        //.duty_resolution  = LEDC_RESOLUTION,
         .clk_cfg          = LEDC_AUTO_CLK
     };
     ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
@@ -110,27 +108,7 @@ void motor_set_speed(int speed) {
 
 
 
-// Hàm kiểm tra nút bấm
-// void checkButton2() {
-//     while (true) {
-//         if (gpio_get_level(BUTTON_PIN_2) == 0) { // Giả sử nút bấm được kết nối GND
-//             blinkLed(); // Gọi hàm nháy LED
-//             vTaskDelay(1000 / portTICK_PERIOD_MS); // Tránh lặp lại quá nhanh
-//         }
-//         vTaskDelay(100 / portTICK_PERIOD_MS); // Kiểm tra lại sau 100 ms
-//     }
-//}
 
-
-
-
-//register nums xoay adc
-// void configure_adc() {
-//     adc1_config_width(ADC_WIDTH_BIT_12);
-//     adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_0); // GPIO 34
-//}
-
-//khoi tao gpio cho nut bam
 void configure_button() {
     gpio_set_direction(BUTTON_PIN_1, GPIO_MODE_INPUT);
     gpio_set_pull_mode(BUTTON_PIN_1, GPIO_PULLUP_ONLY);
@@ -246,19 +224,12 @@ void event_handler()
     StateofMotor Motor_state_1(0,0,0,0,0);
     configure_button();
 
-    
-
-
-
     while(1)
     {
         ///khoi tao logic cho nut bam
-    int button1 = button1_logic();
-    int button2 = button2_logic();
-    int button3 = button3_logic();
-    Motor_state_1.setButton1(button1);
-    Motor_state_1.setButton2(button2);
-    Motor_state_1.setButton3(button3);
+    Motor_state_1.setButton1(button1_logic());
+    Motor_state_1.setButton2(button2_logic());
+    Motor_state_1.setButton3(button3_logic());
     if(Motor_state_1.CheckButton1() == 0)
     {
         speed_control_enabled = 0;
@@ -285,9 +256,6 @@ void event_handler()
         {
             vTaskDelay(100 / portTICK_PERIOD_MS);
         }
-        
-          
-   
     }
 
 }

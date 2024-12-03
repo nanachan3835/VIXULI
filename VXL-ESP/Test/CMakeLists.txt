@@ -3,4 +3,9 @@
 cmake_minimum_required(VERSION 3.16)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
+# uncomment the following lines to switch to test mode
+# add_compile_definitions(TESTING)
+# set(EXTRA_COMPONENT_DIRS "test")
+
 project(Test)

@@ -12,11 +12,7 @@
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 
-#define STATIC_IP "192.168.1.245"
-#define GATEWAY "192.168.1.1"
-#define NETMASK "255.255.255.0"
-
-static const int WIFI_RETRY_ATTEMPT = 10;
+static int MAX_TRIALS = 10;
 static int wifi_retry_count = 0;
 
 static esp_netif_t *wifi_netif = NULL;
@@ -75,7 +71,7 @@ static void wifi_event_cb(void *arg, esp_event_base_t event_base, int32_t event_
         break;
     case (WIFI_EVENT_STA_DISCONNECTED):
         ESP_LOGI(TAG, "Wi-Fi disconnected");
-        if (wifi_retry_count < WIFI_RETRY_ATTEMPT)
+        if (wifi_retry_count < MAX_TRIALS)
         {
             ESP_LOGI(TAG, "Retrying to connect to Wi-Fi network...");
             esp_wifi_connect();
@@ -83,8 +79,11 @@ static void wifi_event_cb(void *arg, esp_event_base_t event_base, int32_t event_
         }
         else
         {
-            ESP_LOGI(TAG, "Failed to connect to Wi-Fi network");
-            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+            wifi_retry_count = 0;
+            vTaskDelay(pdMS_TO_TICKS(20000));
+            ESP_LOGI(TAG, "Failed to connect to Wi-Fi network many times, wait for 20 seconds to continue reconnect.");
+            // ESP_LOGI(TAG, "Failed to connect to Wi-Fi network");
+            // xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
         }
         break;
     case (WIFI_EVENT_STA_AUTHMODE_CHANGE):
@@ -96,7 +95,7 @@ static void wifi_event_cb(void *arg, esp_event_base_t event_base, int32_t event_
     }
 }
 
-esp_err_t wifi_init(void)
+esp_err_t wifi_init(const char* static_ip, const char* gateway, const char* netmask)
 {
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -138,9 +137,9 @@ esp_err_t wifi_init(void)
     ESP_ERROR_CHECK(esp_netif_dhcpc_stop(wifi_netif));
     // Set static IP
     esp_netif_ip_info_t ip_info;
-    ip_info.ip.addr = esp_ip4addr_aton(STATIC_IP);
-    ip_info.gw.addr = esp_ip4addr_aton(GATEWAY);
-    ip_info.netmask.addr = esp_ip4addr_aton(NETMASK);
+    ip_info.ip.addr = esp_ip4addr_aton(static_ip);
+    ip_info.gw.addr = esp_ip4addr_aton(gateway);
+    ip_info.netmask.addr = esp_ip4addr_aton(netmask);
     ESP_ERROR_CHECK(esp_netif_set_ip_info(wifi_netif, &ip_info));
 
     // Wi-Fi stack configuration parameters
@@ -160,11 +159,13 @@ esp_err_t wifi_init(void)
     return ret;
 }
 
-esp_err_t wifi_connect(char *wifi_ssid, char *wifi_password)
+esp_err_t wifi_connect(char *wifi_ssid, char *wifi_password, int trials)
 {
     wifi_config_t wifi_config = {
         .sta = {},
     };
+
+    MAX_TRIALS = trials;
 
     strncpy((char *)wifi_config.sta.ssid, wifi_ssid, sizeof(wifi_config.sta.ssid));
     strncpy((char *)wifi_config.sta.password, wifi_password, sizeof(wifi_config.sta.password));

@@ -1,6 +1,4 @@
 #ifdef TESTING
-#include <string.h>
-
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
@@ -13,26 +11,28 @@
 
 #define WIFI_MAX_RECONNECT_TIMES 30
 
+#define MIN(a, b) a < b ? a : b
+
 esp_err_t get_handler(httpd_req_t *req) {
     const char* base_res = "GET data: ";
     char resp[256] = {0};
     char buf[200];
-    int ret = httpd_req_recv(req, buf, sizeof(buf));
-    if (ret < 0) {
-        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
-        httpd_resp_send_408(req);
-        ESP_LOGI(TAG, "TIMED OUT");
-        return ESP_OK;
-        }
-        return ESP_FAIL;
+    int buf_len = MIN(sizeof(buf) - 1, httpd_req_get_url_query_len(req) + 1);
+
+    if (buf_len > 1) {
+        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+            ESP_LOGI(TAG, "Found URL query => %s", buf);
+            }
     }
-    buf[ret] = '\0';
-    if (sizeof(resp) - strlen(base_res) - ret - 1 > 0) {
+
+    if (sizeof(resp) - strlen(base_res) - buf_len - 1 > 0) {
         strcpy(resp, base_res);
         strcat(resp, buf);
     } else ESP_LOGE(TAG, "Request data too big, data will be ignored.");
+    buf[buf_len] = '\0';
+
     ESP_LOGI(TAG, "=========== RECEIVED DATA ==========");
-    ESP_LOGI(TAG, "%.*s", ret, buf);
+    ESP_LOGI(TAG, "%.*s", buf_len, buf);
     ESP_LOGI(TAG, "====================================");
     httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;

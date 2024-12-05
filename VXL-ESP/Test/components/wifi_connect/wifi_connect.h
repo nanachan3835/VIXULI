@@ -1,9 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "esp_err.h"
 #include "esp_log.h"
 
@@ -12,6 +8,10 @@ extern "C" {
 #include "esp_wifi.h"
 
 #include "freertos/FreeRTOS.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 esp_err_t wifi_init(const char* static_ip, const char* gateway, const char* netmask);
 esp_err_t wifi_connect(char* wifi_ssid, char* wifi_password, int trials);

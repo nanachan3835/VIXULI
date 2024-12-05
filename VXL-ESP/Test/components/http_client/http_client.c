@@ -1,6 +1,7 @@
 #include "http_client.h"
 
-#include <sys/param.h>
+#include "sys/param.h"
+
 #include "esp_log.h"
 
 #include "esp_http_client.h"

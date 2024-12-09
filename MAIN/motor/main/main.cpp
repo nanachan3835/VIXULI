@@ -219,7 +219,7 @@ void event_handler()
    
 
     //configure_adc();
-    rotary_encoder_init();
+    //rotary_encoder_init();
     motor_control_init();
     StateofMotor Motor_state_1(0,0,0,0,0);
     configure_button();
@@ -250,8 +250,16 @@ void event_handler()
         if (Motor_state_1.CheckButton2() == 1)
         {
             speed_control_enabled = 1;
-            vTaskDelay(100 / portTICK_PERIOD_MS);
+            while(1)
+            {
+                rotary_encoder_init();
+                motor_set_speed(motor_speed);
+                if(Motor_state_1.CheckButton2() == 0)
+                {
+                    break;
+                }
         }
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         else
         {
             vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -260,11 +268,13 @@ void event_handler()
 
 }
 }
+}
 ////////////////////////////////////////////////////////////////////////////
 
 extern "C" void app_main(void)
 {
+    
     event_handler();
-
+    
 
 }

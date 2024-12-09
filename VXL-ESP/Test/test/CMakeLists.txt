@@ -1,6 +1,6 @@
 idf_component_register(SRCS "test.c"
                     INCLUDE_DIRS ""
-                    REQUIRES esp_wifi nvs_flash esp_http_client wifi_connect http_client http_server)
+                    REQUIRES esp_wifi nvs_flash esp_http_client wifi_connect http_client http_server test_compo)
 
 if(DEFINED ENV{WIFI_SSID})
     message(STATUS "Environment variable WIFI_SSID is defined: $ENV{WIFI_SSID}")

@@ -8,14 +8,6 @@
 
 static httpd_handle_t server = NULL;
 
-int on_get_sync(const char* path, esp_err_t(*get_handler) (httpd_req_t* req) ) {
-    httpd_handle_t server = on_get_async(path, get_handler);
-    while(server) {
-        vTaskDelay(pdMS_TO_TICKS(5000));
-    }
-    return server != NULL;
-}
-
 httpd_handle_t on_get_async(const char* path, esp_err_t(*get_handler) (httpd_req_t* req) ) {
     if (path == NULL || strncmp(path, "/", 1) != 0) {
         ESP_LOGE(TAG, "Invalid path: %.*s", (int)strlen(path), path);

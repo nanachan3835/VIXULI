@@ -2,7 +2,7 @@
 
 #include <inttypes.h>
 #include <string.h>
-
+#include "esp_sntp.h"
 #include "freertos/event_groups.h"
 
 #define WIFI_AUTHMODE WIFI_AUTH_WPA2_PSK
@@ -12,14 +12,14 @@
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 
-static int MAX_TRIALS = 10;
-static int wifi_retry_count = 0;
-
 static esp_netif_t *wifi_netif = NULL;
 static esp_event_handler_instance_t ip_event_handler;
 static esp_event_handler_instance_t wifi_event_handler;
 
 static EventGroupHandle_t s_wifi_event_group = NULL;
+
+static int is_connect = 0;
+static int is_init = 0;
 
 static void ip_event_cb(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
@@ -29,16 +29,15 @@ static void ip_event_cb(void *arg, esp_event_base_t event_base, int32_t event_id
     case (IP_EVENT_STA_GOT_IP):
         ip_event_got_ip_t *event_ip = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event_ip->ip_info.ip));
-        wifi_retry_count = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
         break;
     case (IP_EVENT_STA_LOST_IP):
         ESP_LOGI(TAG, "Lost IP");
+        wifi_disconnect();
         break;
     case (IP_EVENT_GOT_IP6):
         ip_event_got_ip6_t *event_ip6 = (ip_event_got_ip6_t *)event_data;
         ESP_LOGI(TAG, "Got IPv6: " IPV6STR, IPV62STR(event_ip6->ip6_info.ip));
-        wifi_retry_count = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
         break;
     default:
@@ -71,20 +70,8 @@ static void wifi_event_cb(void *arg, esp_event_base_t event_base, int32_t event_
         break;
     case (WIFI_EVENT_STA_DISCONNECTED):
         ESP_LOGI(TAG, "Wi-Fi disconnected");
-        if (wifi_retry_count < MAX_TRIALS)
-        {
-            ESP_LOGI(TAG, "Retrying to connect to Wi-Fi network...");
-            esp_wifi_connect();
-            wifi_retry_count++;
-        }
-        else
-        {
-            wifi_retry_count = 0;
-            vTaskDelay(pdMS_TO_TICKS(20000));
-            ESP_LOGI(TAG, "Failed to connect to Wi-Fi network many times, wait for 20 seconds to continue reconnect.");
-            // ESP_LOGI(TAG, "Failed to connect to Wi-Fi network");
-            // xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
-        }
+        ESP_LOGI(TAG, "Retrying to connect to Wi-Fi network...");
+        esp_wifi_connect();
         break;
     case (WIFI_EVENT_STA_AUTHMODE_CHANGE):
         ESP_LOGI(TAG, "Wi-Fi authmode changed");
@@ -156,16 +143,86 @@ esp_err_t wifi_init(const char* static_ip, const char* gateway, const char* netm
                                                         &ip_event_cb,
                                                         NULL,
                                                         &ip_event_handler));
+
+    is_init = 1;
+
     return ret;
 }
 
-esp_err_t wifi_connect(char *wifi_ssid, char *wifi_password, int trials)
+esp_err_t wifi_init_dhcp() {
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+
+    s_wifi_event_group = xEventGroupCreate();
+
+    ret = esp_netif_init();
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to initialize TCP/IP network stack");
+        return ret;
+    }
+
+    ret = esp_event_loop_create_default();
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to create default event loop");
+        return ret;
+    }
+
+    ret = esp_wifi_set_default_wifi_sta_handlers();
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to set default handlers");
+        return ret;
+    }
+
+    wifi_netif = esp_netif_create_default_wifi_sta();
+    if (wifi_netif == NULL)
+    {
+        ESP_LOGE(TAG, "Failed to create default WiFi STA interface");
+        return ESP_FAIL;
+    }
+
+    // Wi-Fi stack configuration parameters
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+                                                        ESP_EVENT_ANY_ID,
+                                                        &wifi_event_cb,
+                                                        NULL,
+                                                        &wifi_event_handler));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+                                                        ESP_EVENT_ANY_ID,
+                                                        &ip_event_cb,
+                                                        NULL,
+                                                        &ip_event_handler));
+
+    is_init = 1;
+    return ret;
+}
+
+esp_err_t wifi_connect(char *wifi_ssid, char *wifi_password)
 {
+    if (is_init == 0)
+    {
+        ESP_LOGE(TAG, "Wi-Fi stack not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+
     wifi_config_t wifi_config = {
         .sta = {},
     };
 
-    MAX_TRIALS = trials;
+    if (wifi_ssid == NULL || wifi_password == NULL)
+    {
+        ESP_LOGE(TAG, "Wi-Fi SSID or password is NULL");
+        return ESP_ERR_INVALID_ARG;
+    }
 
     strncpy((char *)wifi_config.sta.ssid, wifi_ssid, sizeof(wifi_config.sta.ssid));
     strncpy((char *)wifi_config.sta.password, wifi_password, sizeof(wifi_config.sta.password));
@@ -182,6 +239,7 @@ esp_err_t wifi_connect(char *wifi_ssid, char *wifi_password, int trials)
     if (bits & WIFI_CONNECTED_BIT)
     {
         ESP_LOGI(TAG, "Connected to Wi-Fi network: %s", wifi_config.sta.ssid);
+        is_connect = 1;
         return ESP_OK;
     }
     else if (bits & WIFI_FAIL_BIT)
@@ -194,12 +252,61 @@ esp_err_t wifi_connect(char *wifi_ssid, char *wifi_password, int trials)
     return ESP_FAIL;
 }
 
+void init_sntp(const char* server) {
+    esp_sntp_stop();
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, server);
+    esp_sntp_init();
+}
+
+esp_err_t sync_time() {
+    if (!is_connect)
+    {
+        ESP_LOGE(TAG, "Wi-Fi not connected to sync time");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    const char* serverList[] = {
+            "time.google.com",
+            "time.android.com",
+            "time.aws.com",
+            "time.cloudflare.com",
+            "time.windows.com",
+            "time.nist.gov",
+            "time.apple.com",
+            "time.facebook.com",
+            "pool.ntp.org",
+            "0.pool.ntp.org",
+            "3.pool.ntp.org",
+    };
+
+    int retry = 0;
+    const int retry_count = 10;
+    for (int i = 0; i < sizeof(serverList) / sizeof(const char*); i++) {
+        init_sntp(serverList[i]);
+        ESP_LOGI(TAG, "Selecting time server: %s", serverList[i]);
+        while (++retry < retry_count) {
+            if (sntp_get_sync_status() != SNTP_SYNC_STATUS_RESET)
+                return ESP_OK;
+            ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
+        }
+        ESP_LOGE(TAG, "Cannot get time from server: %s", serverList[i]);
+        retry = 0;
+    }
+
+    return ESP_FAIL;
+}
+
 esp_err_t wifi_disconnect(void)
 {
     if (s_wifi_event_group)
     {
         vEventGroupDelete(s_wifi_event_group);
     }
+
+    s_wifi_event_group = NULL;
+    is_connect = 0;
 
     return esp_wifi_disconnect();
 }
@@ -220,5 +327,9 @@ esp_err_t wifi_free(void)
     ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, ESP_EVENT_ANY_ID, ip_event_handler));
     ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler));
 
+    wifi_netif = NULL;
+    ip_event_handler = NULL;
+    wifi_event_handler = NULL;
+    is_init = 0;
     return ESP_OK;
 }

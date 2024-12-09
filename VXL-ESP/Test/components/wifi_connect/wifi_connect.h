@@ -14,7 +14,9 @@ extern "C" {
 #endif
 
 esp_err_t wifi_init(const char* static_ip, const char* gateway, const char* netmask);
-esp_err_t wifi_connect(char* wifi_ssid, char* wifi_password, int trials);
+esp_err_t wifi_init_dhcp();
+esp_err_t wifi_connect(char* wifi_ssid, char* wifi_password);
+esp_err_t sync_time();
 esp_err_t wifi_disconnect(void);
 esp_err_t wifi_free(void);
 

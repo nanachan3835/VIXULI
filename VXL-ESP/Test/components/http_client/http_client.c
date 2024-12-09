@@ -65,8 +65,7 @@ int url_validate(char *url)
 }
 
 // !: res can be NULL
-// todo: add req feature
-int http_request(char *url, esp_http_client_method_t http_method, char *req, char *res)
+int http_request(char *url, esp_http_client_method_t http_method, char *req_JSON, char *res)
 {
     if (url_validate(url) != 0)
     {
@@ -86,6 +85,11 @@ int http_request(char *url, esp_http_client_method_t http_method, char *req, cha
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_http_client_set_method(client, http_method);
+    if (http_method == HTTP_METHOD_POST && req_JSON != NULL)
+    {
+        esp_http_client_set_header(client, "Content-Type", "application/json");
+        esp_http_client_set_post_field(client, req_JSON, strlen(req_JSON));
+    }
     ESP_LOGI(TAG, "sending to url: %s", config.url);
 
     esp_err_t err = esp_http_client_perform(client);

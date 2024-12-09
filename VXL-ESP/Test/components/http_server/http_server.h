@@ -9,8 +9,6 @@
 extern "C" {
 #endif
 
-int on_get_sync(const char* path, esp_err_t(*get_handler) (httpd_req_t* req));
-
 httpd_handle_t on_get_async(const char* path, esp_err_t(*get_handler) (httpd_req_t* req));
 
 #ifdef __cplusplus

@@ -6,10 +6,9 @@
 #include "http_client.h"
 #include "http_server.h"
 #include "wifi_connect.h"
+#include "test_compo.h"
 
 #define TAG "main"
-
-#define WIFI_MAX_RECONNECT_TIMES 30
 
 #define MIN(a, b) a < b ? a : b
 
@@ -39,11 +38,18 @@ esp_err_t get_handler(httpd_req_t *req) {
 }
 
 void app_main(void) {
+
+    event_wifi_handler("Wifi", "nduc2003");
+
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(10000));
+    }
+
     ESP_LOGI(TAG, "Starting ...");
     ESP_ERROR_CHECK(wifi_init(STATIC_IP, GATEWAY, NETMASK));
 
     esp_err_t ret =
-        wifi_connect(WIFI_SSID, WIFI_PASSWORD, WIFI_MAX_RECONNECT_TIMES);
+        wifi_connect(WIFI_SSID, WIFI_PASSWORD);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to connect to Wi-Fi network");
     }
@@ -89,8 +95,8 @@ void app_main(void) {
 
         ESP_LOGI(TAG, "==============Now test http server==============");
 
-        on_get_sync("/test", get_handler);
-        while (1) {
+        httpd_handle_t server = on_get_async("/test", get_handler);
+        while (server) {
             vTaskDelay(pdMS_TO_TICKS(10000));
         }
     }

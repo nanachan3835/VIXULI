@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-int http_request(char* url, esp_http_client_method_t http_method, char* req, char* res);
+int http_request(char* url, esp_http_client_method_t http_method, char* req_JSON, char* res);
 
 #ifdef __cplusplus
 }

@@ -1,53 +1,74 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C6 | ESP32-H2 | ESP32-P4 | ESP32-S2 | ESP32-S3 | Linux |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | -------- | -------- | -------- | ----- |
+# ESP32 controller medium
+Project used for a ESP32 device that behaves as a medium between motor controller and a broker server.
 
-# Hello World Example
+## Installation prerequisite
+ESP-IDF V5.0 or newer is recommended.
 
-Starts a FreeRTOS task to print "Hello World".
+## Components usage
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+### HTTP client
+ - Import
+ ``` c
+ #include "http_client.h"
+ ```
+ - Method:
+    ``` c
+    int http_request(
+        char* url,
+        esp_http_client_method_t http_method,
+        char* req_JSON,
+        char* res
+    );
+    ```
 
-## How to use example
+    Params explanation:
 
-Follow detailed instructions provided specifically for this example.
+    `url`: full url path including protocol, host, port, path, and queries.
 
-Select the instructions depending on Espressif chip installed on your development board:
+    `http_method`: choose between `HTTP_GET`, `HTTP_POST`, `HTTP_PATCH`.
 
-- [ESP32 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html)
-- [ESP32-S2 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s2/get-started/index.html)
+    `req_JSON`: request body buffer (should be in JSON format). Only applicable when `http_method` is `HTTP_POST`. Can be NULL if ignore request body.
 
+    `res`: response body buffer. Can be NULL if ignore response.
 
-## Example folder contents
+    Return value: 0 means success, fail when value is not 0.
 
-The project **hello_world** contains one source file in C language [hello_world_main.c](main/hello_world_main.c). The file is located in folder [main](main).
+### HTTPS client
+Coming soon
 
-ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt` files that provide set of directives and instructions describing the project's source files and targets (executable, library, or both).
+### HTTP server
+ - Import
+    ``` c
+    #include "http_server.h"
+    ```
+ - Methods:
 
-Below is short explanation of remaining files in the project folder.
+    ``` c
+    httpd_handle_t on_get_async(
+        const char* path,
+        esp_err_t(*handler) (httpd_req_t* req)
+    );
 
-```
-├── CMakeLists.txt
-├── pytest_hello_world.py      Python script used for automated testing
-├── main
-│   ├── CMakeLists.txt
-│   └── hello_world_main.c
-└── README.md                  This is the file you are currently reading
-```
+    httpd_handle_t on_post_async(
+        const char* path,
+        esp_err_t(*handler) (httpd_req_t* req)
+    );
+    ```
+    Register a path, method, and callback to server.
 
-For more information on structure and contents of ESP-IDF projects, please refer to Section [Build System](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html) of the ESP-IDF Programming Guide.
+    Params explanation:
 
-## Troubleshooting
+    `path`:
+    a path for server listen to, must start with `/`.
+    E.g., `/example`
 
-* Program upload failure
+    `handler`: a callback to process data when client connect to the corresponding path.
 
-    * Hardware connection is not correct: run `idf.py -p PORT monitor`, and reboot your board to see if there are any output logs.
-    * The baud rate for downloading is too high: lower your baud rate in the `menuconfig` menu, and try again.
+    Please check out this example: https://github.com/espressif/esp-idf/blob/master/examples/protocols/http_server/simple/main/main.c to learn more about how to create a callback.
 
-## Technical support and feedback
+### Wi-Fi connection
 
-Please use the following feedback channels:
+### test_compo
 
-* For technical queries, go to the [esp32.com](https://esp32.com/) forum
-* For a feature request or bug report, create a [GitHub issue](https://github.com/espressif/esp-idf/issues)
-
-We will get back to you as soon as possible.
+### Rotary Encoder
+Please refer to: https://github.com/nopnop2002/esp-idf-RotaryEncoder

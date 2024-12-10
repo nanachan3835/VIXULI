@@ -4,6 +4,7 @@
 #include <string.h>
 #include "esp_sntp.h"
 #include "freertos/event_groups.h"
+#include "stdbool.h"
 
 #define WIFI_AUTHMODE WIFI_AUTH_WPA2_PSK
 
@@ -18,8 +19,8 @@ static esp_event_handler_instance_t wifi_event_handler;
 
 static EventGroupHandle_t s_wifi_event_group = NULL;
 
-static int is_connect = 0;
-static int is_init = 0;
+static bool is_connect = false;
+static bool is_init = false;
 
 static void ip_event_cb(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
@@ -82,7 +83,7 @@ static void wifi_event_cb(void *arg, esp_event_base_t event_base, int32_t event_
     }
 }
 
-esp_err_t wifi_init(const char* static_ip, const char* gateway, const char* netmask)
+esp_err_t wifi_init(char* static_ip, char* gateway, char* netmask)
 {
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -144,7 +145,7 @@ esp_err_t wifi_init(const char* static_ip, const char* gateway, const char* netm
                                                         NULL,
                                                         &ip_event_handler));
 
-    is_init = 1;
+    is_init = true;
 
     return ret;
 }
@@ -202,7 +203,7 @@ esp_err_t wifi_init_dhcp() {
                                                         NULL,
                                                         &ip_event_handler));
 
-    is_init = 1;
+    is_init = true;
     return ret;
 }
 
@@ -210,7 +211,7 @@ esp_err_t wifi_connect(char *wifi_ssid, char *wifi_password)
 {
     if (is_init == 0)
     {
-        ESP_LOGE(TAG, "Wi-Fi stack not initialized");
+        ESP_LOGE(TAG, "Need to initialize wifi before connect");
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -239,7 +240,7 @@ esp_err_t wifi_connect(char *wifi_ssid, char *wifi_password)
     if (bits & WIFI_CONNECTED_BIT)
     {
         ESP_LOGI(TAG, "Connected to Wi-Fi network: %s", wifi_config.sta.ssid);
-        is_connect = 1;
+        is_connect = true;
         return ESP_OK;
     }
     else if (bits & WIFI_FAIL_BIT)
@@ -298,7 +299,7 @@ esp_err_t sync_time() {
     return ESP_FAIL;
 }
 
-esp_err_t wifi_disconnect(void)
+esp_err_t wifi_disconnect()
 {
     if (s_wifi_event_group)
     {
@@ -306,12 +307,12 @@ esp_err_t wifi_disconnect(void)
     }
 
     s_wifi_event_group = NULL;
-    is_connect = 0;
+    is_connect = false;
 
     return esp_wifi_disconnect();
 }
 
-esp_err_t wifi_free(void)
+esp_err_t wifi_free()
 {
     esp_err_t ret = esp_wifi_stop();
     if (ret == ESP_ERR_WIFI_NOT_INIT)
@@ -330,6 +331,6 @@ esp_err_t wifi_free(void)
     wifi_netif = NULL;
     ip_event_handler = NULL;
     wifi_event_handler = NULL;
-    is_init = 0;
+    is_init = false;
     return ESP_OK;
 }

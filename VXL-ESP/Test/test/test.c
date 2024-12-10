@@ -39,7 +39,7 @@ esp_err_t get_handler(httpd_req_t *req) {
 
 void app_main(void) {
 
-    event_wifi_handler("Wifi", "nduc2003");
+    event_wifi_handler(WIFI_SSID, WIFI_PASSWORD, 0, 1);
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(10000));

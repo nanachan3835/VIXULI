@@ -10,6 +10,7 @@ extern "C" {
 #endif
 
 httpd_handle_t on_get_async(const char* path, esp_err_t(*get_handler) (httpd_req_t* req));
+httpd_handle_t on_post_async(const char* path, esp_err_t(*post_handler) (httpd_req_t* req));
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,12 @@
+tôi có 1 project về esp32 điều khiển motor bằng 3 nút bấm và núm xoay như sau. 
+Có 3 nút bấm
+nút 1: - khi tắt: đặt motor vào chế độ cài đặt trạng thái(tốc độ, chiều quay, thời gian chạy)
+        - khi bật: motor hoạt động theo trạng thái đã cài đặt
+nút 2: -khi nút 1 bật - khi bật: motor dừng lại, gửi dữ liệu về trạng thái hiện tại lên firebase
+                      - khi tắt : motor hoạt động theo trạng thái đã cài đặt 
+       -khi nút 1 tắt - khi tắt : motor vào chế độ điều chỉnh tốc độ quay bằng núm xoay 
+                      - khi bật : motor vào chế độ điều chỉnh thời gian chạy bằng núm xoay
+nút 3: -khi nút 1 bật - khi bật : motor quay trái
+                      - khi tắt : motor quay phải
+       -khi nút 1 tắt - khi tắt : ở trạng thái chờ xác nhận dữ liệu điều chỉnh từ nút 2
+                      - khi bật : xác nhận dữ liệu điều chỉnh từ nút 2

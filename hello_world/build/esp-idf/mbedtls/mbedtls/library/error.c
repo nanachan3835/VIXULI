@@ -1,1 +1,0 @@
-/home/nanachanuwu/ESP/esp-idf/components/mbedtls/mbedtls/library/error.c

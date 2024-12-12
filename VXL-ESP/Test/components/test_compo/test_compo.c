@@ -4,6 +4,7 @@
 #include "freertos/idf_additions.h"
 #include "http_server.h"
 #include "wifi_connect.h"
+#include <cerrno>
 #include <string.h>
 #include "cJSON.h"
 #include "time.h"
@@ -51,7 +52,74 @@ esp_err_t post_handler (httpd_req_t* req) { //! untested function
 }
 
 int test(char* json) {
-    return -1;
+    cJSON *testJson = cJSON_Parse(json);
+    ESP_LOGI(TAG, "Parsing JSON:\n %s", json);
+    if (testJson == NULL) {
+        ESP_LOGE(TAG, "Failed to parse JSON.");
+        const char *error_ptr = cJSON_GetErrorPtr();
+        if (error_ptr != NULL) {
+            ESP_LOGE(TAG, "Error before: %s", error_ptr);
+        }
+        cJSON_Delete(testJson);
+        return -1;
+    }
+
+    // Parse and validate speed
+    char* speed_str = cJSON_GetObjectItem(testJson, "speed")->valuestring;
+    if (speed_str == NULL) {
+        ESP_LOGE(TAG, "Failed to get speed from JSON");
+        cJSON_Delete(testJson);
+        return -1;
+    }
+    void* endptr;
+    float speed = strtof(speed_str, endptr);
+    errno = 0;
+    if (speed_str == endptr) {
+        ESP_LOGE(TAG, "Failed to convert speed to float");
+        cJSON_Delete(testJson);
+        return -1;
+    }
+    if (errno == ERANGE) {
+        ESP_LOGE(TAG, "Speed out of range");
+        cJSON_Delete(testJson);
+        return -1;
+    }
+    if (speed < 0) {
+        ESP_LOGE(TAG, "Invalid speed value");
+        cJSON_Delete(testJson);
+        return -1;
+    }
+
+    const int GMT7_D1_M12_Y2024_EPOCH = 1732986000;
+
+    // Parse and validate start_time
+    int start_time = cJSON_GetObjectItem(testJson, "start_time")->valueint;
+    if (start_time == 0) {
+        ESP_LOGE(TAG, "Failed to get start_time from JSON");
+        cJSON_Delete(testJson);
+        return -1;
+    }
+    if (start_time < GMT7_D1_M12_Y2024_EPOCH) {
+        ESP_LOGE(TAG, "Absurd start_time value");
+        cJSON_Delete(testJson);
+        return -1;
+    }
+
+    // Parse and validate stop_time
+    int stop_time = cJSON_GetObjectItem(testJson, "stop_time")->valueint;
+    if (stop_time == 0) {
+        ESP_LOGE(TAG, "Failed to get stop_time from JSON");
+        cJSON_Delete(testJson);
+        return -1;
+    }
+    if (stop_time < GMT7_D1_M12_Y2024_EPOCH) {
+        ESP_LOGE(TAG, "Absurd stop_time value");
+        cJSON_Delete(testJson);
+        return -1;
+    }
+
+    cJSON_Delete(testJson);
+    return 0;
 }
 
 void event_wifi_handler(char* wifi_ssid, char* wifi_password, int gpio_num1, int gpio_num2) {

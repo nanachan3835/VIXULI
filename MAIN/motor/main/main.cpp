@@ -6,6 +6,12 @@
 #include "esp_err.h"
 #include "state.h"
 #include "driver/adc.h"
+#include "sdkconfig.h"
+#include "freertos/queue.h"
+#include "driver/pulse_cnt.h"
+#include "esp_log.h"
+#include "esp_sleep.h"
+#include "driver/pcnt.h"
 
 
 
@@ -49,7 +55,8 @@ volatile int motor_speed = 0; // Tốc độ (-255 đến 255)
 
 // Cờ trạng thái quay chiều
 volatile int last_clk_state = 0;
-
+//
+static const char *TAG = "MOTOR";
 
 ///////////////////////////////////////////////////////////////////
 
@@ -225,7 +232,7 @@ static bool example_pcnt_on_reach(pcnt_unit_handle_t unit, const pcnt_watch_even
 
 
 /////////////////////////ham xử lú sự kiện/////////
-void event_handler()
+extern void app_main()
 {
     //khai bao num xoay
    ESP_LOGI(TAG, "install pcnt unit");
@@ -285,7 +292,7 @@ void event_handler()
     ESP_ERROR_CHECK(gpio_wakeup_enable(EXAMPLE_EC11_GPIO_A, GPIO_INTR_LOW_LEVEL));
     ESP_ERROR_CHECK(esp_sleep_enable_gpio_wakeup());
     ESP_ERROR_CHECK(esp_light_sleep_start());
-#endif
+    #endif
 
     // Report counter value
     int pulse_count = 0;
@@ -327,12 +334,12 @@ void event_handler()
             {
                 if (xQueueReceive(queue, &event_count, pdMS_TO_TICKS(1000))) {
                         ESP_LOGI(TAG, "Watch point event, count: %d", event_count);
-        } 
+                    } 
         else {
             ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
             ESP_LOGI(TAG, "Pulse count: %d", pulse_count);
         }
-                rotary_encoder_init();
+                //rotary_encoder_init();
                 motor_speed = pulse_count;
                 motor_set_speed(motor_speed);
                 if(Motor_state_1.CheckButton2() == 0)
@@ -340,22 +347,16 @@ void event_handler()
                     break;
                 }
         }
+
         vTaskDelay(100 / portTICK_PERIOD_MS);
+        }
         else
         {
             vTaskDelay(100 / portTICK_PERIOD_MS);
         }
+
     }
+}
+}
 
-}
-}
-}
 ////////////////////////////////////////////////////////////////////////////
-
-extern "C" void app_main(void)
-{
-    
-    event_handler();
-    
-
-}

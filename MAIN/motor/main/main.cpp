@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <inttypes.h> 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
@@ -11,7 +12,8 @@
 #include "driver/pulse_cnt.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
-#include "driver/pcnt.h"
+#include "esp_adc_cal.h"
+//#include "driver/pcnt.h"
 
 
 
@@ -23,7 +25,7 @@
 
 
 //nut bam
-#define BUTTON_PIN_1 GPIO_NUM_0 // Nút bấm
+#define BUTTON_PIN_1 GPIO_NUM_12 // Nút bấm
 //#define LED_PIN GPIO_NUM_2    // LED
 #define BUTTON_PIN_2 GPIO_NUM_4 // Nút bấm
 #define BUTTON_PIN_3 GPIO_NUM_5 // Nút bấm
@@ -39,8 +41,8 @@
 //cau hinh num xoay
 //#define ROTARY_CLK_GPIO    GPIO_NUM_18     //18 // GPIO cho tín hiệu CLK từ rotary encoder
 //#define ROTARY_DT_GPIO     GPIO_NUM_19   //19 // GPIO cho tín hiệu DT từ rotary encoder    
-#define EXAMPLE_PCNT_HIGH_LIMIT 100
-#define EXAMPLE_PCNT_LOW_LIMIT  -100
+#define EXAMPLE_PCNT_HIGH_LIMIT 255//100
+#define EXAMPLE_PCNT_LOW_LIMIT  -255//-100
 //#define POT_PIN GPIO_NUM_34 
 #define EXAMPLE_EC11_GPIO_A 0
 #define EXAMPLE_EC11_GPIO_B 2
@@ -60,6 +62,15 @@ static const char *TAG = "MOTOR";
 
 ///////////////////////////////////////////////////////////////////
 
+#define ADC_CHANNEL    ADC1_CHANNEL_0 // GPIO36 (VP) by default
+#define ADC_WIDTH      ADC_WIDTH_BIT_12
+#define ADC_ATTEN      ADC_ATTEN_DB_11
+#define DEFAULT_VREF   1100 // Default VREF in mV (set according to your ESP32 board)
+
+static esp_adc_cal_characteristics_t *adc_chars;
+
+
+/////////////////////////////////////////////////////////////////
 
 
 
@@ -220,130 +231,199 @@ int button3_logic()
 
 
 
-static bool example_pcnt_on_reach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx)
-{
-    BaseType_t high_task_wakeup;
-    QueueHandle_t queue = (QueueHandle_t)user_ctx;
-    // send event data to queue, from this interrupt callback
-    xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
-    return (high_task_wakeup == pdTRUE);
+
+
+
+
+/// dung num xoay de dieu chinh toc do motor
+// static bool example_pcnt_on_reach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx)
+// {
+//     BaseType_t high_task_wakeup;
+//     QueueHandle_t queue = (QueueHandle_t)user_ctx;
+//     // send event data to queue, from this interrupt callback
+//     xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
+//     return (high_task_wakeup == pdTRUE);
+// }
+
+
+
+// Function to convert voltage to speed
+int convert_voltage_to_speed(uint32_t voltage) {
+    int speed;
+    if (voltage <= 1650) {
+        // Map 0 to 1650 mV to -255 to 0
+        speed = (voltage * -255) / 1650;
+    } else {
+        // Map 1650 to 3300 mV to 0 to 255
+        speed = ((voltage - 1650) * 255) / 1650;
+    }
+    return speed;
 }
+//////////////////////////////////////////////////////////////////////////
+
+
+
 
 
 
 /////////////////////////ham xử lú sự kiện/////////
-extern void app_main()
+//extern "C" void app_main(void)
+void event_handler(void)
 {
-    //khai bao num xoay
-   ESP_LOGI(TAG, "install pcnt unit");
-    pcnt_unit_config_t unit_config = {
-        .high_limit = EXAMPLE_PCNT_HIGH_LIMIT,
-        .low_limit = EXAMPLE_PCNT_LOW_LIMIT,
-    };
-    pcnt_unit_handle_t pcnt_unit = NULL;
-    ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
+//     //khai bao num xoay
+//    ESP_LOGI(TAG, "install pcnt unit");
+//     pcnt_unit_config_t unit_config = {
+//         .low_limit = EXAMPLE_PCNT_LOW_LIMIT,
+//         .high_limit = EXAMPLE_PCNT_HIGH_LIMIT
+//         //.low_limit = EXAMPLE_PCNT_LOW_LIMIT
+//     };
 
-    ESP_LOGI(TAG, "set glitch filter");
-    pcnt_glitch_filter_config_t filter_config = {
-        .max_glitch_ns = 1000,
-    };
-    ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(pcnt_unit, &filter_config));
+//     pcnt_unit_handle_t pcnt_unit = NULL;
+//     ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
 
-    ESP_LOGI(TAG, "install pcnt channels");
-    pcnt_chan_config_t chan_a_config = {
-        .edge_gpio_num = EXAMPLE_EC11_GPIO_A,
-        .level_gpio_num = EXAMPLE_EC11_GPIO_B,
-    };
-    pcnt_channel_handle_t pcnt_chan_a = NULL;
-    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_config, &pcnt_chan_a));
-    pcnt_chan_config_t chan_b_config = {
-        .edge_gpio_num = EXAMPLE_EC11_GPIO_B,
-        .level_gpio_num = EXAMPLE_EC11_GPIO_A,
-    };
-    pcnt_channel_handle_t pcnt_chan_b = NULL;
-    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_b_config, &pcnt_chan_b));
+//     ESP_LOGI(TAG, "set glitch filter");
+//     pcnt_glitch_filter_config_t filter_config = {
+//         .max_glitch_ns = 1000,
+//     };
+//     ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(pcnt_unit, &filter_config));
 
-    ESP_LOGI(TAG, "set edge and level actions for pcnt channels");
-    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE));
-    ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
-    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
-    ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
+//     ESP_LOGI(TAG, "install pcnt channels");
+//     pcnt_chan_config_t chan_a_config = {
+//         .edge_gpio_num = EXAMPLE_EC11_GPIO_A,
+//         .level_gpio_num = EXAMPLE_EC11_GPIO_B,
+//     };
+//     pcnt_channel_handle_t pcnt_chan_a = NULL;
+//     ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_config, &pcnt_chan_a));
+//     pcnt_chan_config_t chan_b_config = {
+//         .edge_gpio_num = EXAMPLE_EC11_GPIO_B,
+//         .level_gpio_num = EXAMPLE_EC11_GPIO_A,
+//     };
+//     pcnt_channel_handle_t pcnt_chan_b = NULL;
+//     ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_b_config, &pcnt_chan_b));
 
-    ESP_LOGI(TAG, "add watch points and register callbacks");
-    int watch_points[] = {EXAMPLE_PCNT_LOW_LIMIT, -50, 0, 50, EXAMPLE_PCNT_HIGH_LIMIT};
-    for (size_t i = 0; i < sizeof(watch_points) / sizeof(watch_points[0]); i++) {
-        ESP_ERROR_CHECK(pcnt_unit_add_watch_point(pcnt_unit, watch_points[i]));
-    }
-    pcnt_event_callbacks_t cbs = {
-        .on_reach = example_pcnt_on_reach,
-    };
-    QueueHandle_t queue = xQueueCreate(10, sizeof(int));
-    ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(pcnt_unit, &cbs, queue));
+//     ESP_LOGI(TAG, "set edge and level actions for pcnt channels");
+//     ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE));
+//     ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
+//     ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
+//     ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
 
-    ESP_LOGI(TAG, "enable pcnt unit");
-    ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
-    ESP_LOGI(TAG, "clear pcnt unit");
-    ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
-    ESP_LOGI(TAG, "start pcnt unit");
-    ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
+//     ESP_LOGI(TAG, "add watch points and register callbacks");
+//     int watch_points[] = {EXAMPLE_PCNT_LOW_LIMIT, -50, 0, 50, EXAMPLE_PCNT_HIGH_LIMIT};
+//     for (size_t i = 0; i < sizeof(watch_points) / sizeof(watch_points[0]); i++) {
+//         ESP_ERROR_CHECK(pcnt_unit_add_watch_point(pcnt_unit, watch_points[i]));
+//     }
+//     pcnt_event_callbacks_t cbs = {
+//         .on_reach = example_pcnt_on_reach,
+//     };
+//     QueueHandle_t queue = xQueueCreate(10, sizeof(int));
+//     ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(pcnt_unit, &cbs, queue));
 
-#if CONFIG_EXAMPLE_WAKE_UP_LIGHT_SLEEP
-    // EC11 channel output high level in normal state, so we set "low level" to wake up the chip
-    ESP_ERROR_CHECK(gpio_wakeup_enable(EXAMPLE_EC11_GPIO_A, GPIO_INTR_LOW_LEVEL));
-    ESP_ERROR_CHECK(esp_sleep_enable_gpio_wakeup());
-    ESP_ERROR_CHECK(esp_light_sleep_start());
-    #endif
+//     ESP_LOGI(TAG, "enable pcnt unit");
+//     ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
+//     ESP_LOGI(TAG, "clear pcnt unit");
+//     ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
+//     ESP_LOGI(TAG, "start pcnt unit");
+//     ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
 
-    // Report counter value
-    int pulse_count = 0;
-    int event_count = 0;
+// #if CONFIG_EXAMPLE_WAKE_UP_LIGHT_SLEEP
+//     // EC11 channel output high level in normal state, so we set "low level" to wake up the chip
+//     ESP_ERROR_CHECK(gpio_wakeup_enable(EXAMPLE_EC11_GPIO_A, GPIO_INTR_LOW_LEVEL));
+//     ESP_ERROR_CHECK(esp_sleep_enable_gpio_wakeup());
+//     ESP_ERROR_CHECK(esp_light_sleep_start());
+//     #endif
+
+//     // Report counter value
+//     int pulse_count = 0;
+//     int event_count = 0;
 
     //configure_adc();
     //rotary_encoder_init();
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //sudung potentiometer de dieu chinh toc do motor
+     // Allocate memory for ADC characteristics
+    adc_chars = (esp_adc_cal_characteristics_t *)calloc(1, sizeof(esp_adc_cal_characteristics_t));
+
+    // Configure ADC width and attenuation
+    adc1_config_width(ADC_WIDTH);
+    adc1_config_channel_atten(ADC_CHANNEL, ADC_ATTEN);
+
+    // Characterize ADC
+    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN, ADC_WIDTH, DEFAULT_VREF, adc_chars);
+
+    printf("ADC configured. Reading values...\n");
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
     motor_control_init();
-    StateofMotor Motor_state_1(0,0,0,0,0);
+    //StateofMotor Motor_state_1(0,0,0,0,0);
     configure_button();
     /////////////////////////////////////////////////main loop////////////////////
     while(1)
     {
+
+
+
+
+    int raw_value = adc1_get_raw(ADC_CHANNEL);
+    uint32_t voltage = esp_adc_cal_raw_to_voltage(raw_value, adc_chars);
+    printf("Raw: %d\tVoltage: %" PRIu32 "mV\tSpeed: %d\n", raw_value, voltage, motor_speed);
+    
+
+
         ///khoi tao logic cho nut bam
-    Motor_state_1.setButton1(button1_logic());
-    Motor_state_1.setButton2(button2_logic());
-    Motor_state_1.setButton3(button3_logic());
-    if(Motor_state_1.CheckButton1() == 0)
+    //Motor_state_1.setButton1(button1_logic());
+    //Motor_state_1.setButton2(button2_logic());
+    //Motor_state_1.setButton3(button3_logic());
+    if(gpio_get_level(BUTTON_PIN_1) == 1)
+        //Motor_state_1.CheckButton1() == 0)
     {
+        printf("Button 1 is pressed\n");
         speed_control_enabled = 0;
-        if (Motor_state_1.CheckButton2() == 1)
+        if (gpio_get_level(BUTTON_PIN_2) == 0)
+            //Motor_state_1.CheckButton2() == 1)
         {
+            printf("Button 2 is not pressed\n");
+
             motor_set_speed(motor_speed);
             vTaskDelay(100 / portTICK_PERIOD_MS);   
         }
         else
         {
+            printf("Button 2 is not pressed\n");
             motor_set_speed(0);
             vTaskDelay(100 / portTICK_PERIOD_MS);
         }
     }
     else
     {
+        printf("Button 1 is pressed\n");
         speed_control_enabled = 0;
-        if (Motor_state_1.CheckButton2() == 1)
+        if (gpio_get_level(BUTTON_PIN_2) == 0)
+            //Motor_state_1.CheckButton2() == 1)
         {
+            printf("Button 2 is not pressed\n");
             speed_control_enabled = 1;
             while(1)
             {
-                if (xQueueReceive(queue, &event_count, pdMS_TO_TICKS(1000))) {
-                        ESP_LOGI(TAG, "Watch point event, count: %d", event_count);
-                    } 
-        else {
-            ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
-            ESP_LOGI(TAG, "Pulse count: %d", pulse_count);
-        }
-                //rotary_encoder_init();
-                motor_speed = pulse_count;
+        //         if (xQueueReceive(queue, &event_count, pdMS_TO_TICKS(1000))) {
+        //                 ESP_LOGI(TAG, "Watch point event, count: %d", event_count);
+        //             } 
+        // else {
+        //     ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
+        //     ESP_LOGI(TAG, "Pulse count: %d", pulse_count);
+        // }
+        //         //rotary_encoder_init();
+        //         motor_speed = pulse_count;
+                motor_speed = convert_voltage_to_speed(voltage);
                 motor_set_speed(motor_speed);
-                if(Motor_state_1.CheckButton2() == 0)
+                printf("Raw: %d\tVoltage: %" PRIu32 "mV\tSpeed: %d\n", raw_value, voltage, motor_speed);
+                if(gpio_get_level(BUTTON_PIN_2) == 1)
+                    //Motor_state_1.CheckButton2() == 0)
                 {
+                    printf("Button 2 is pressed\n");
                     break;
                 }
         }
@@ -352,6 +432,7 @@ extern void app_main()
         }
         else
         {
+            printf("Button 2 is not pressed\n");
             vTaskDelay(100 / portTICK_PERIOD_MS);
         }
 
@@ -359,4 +440,11 @@ extern void app_main()
 }
 }
 
+
+
 ////////////////////////////////////////////////////////////////////////////
+//
+extern "C" void app_main(void)
+{
+    event_handler();
+}

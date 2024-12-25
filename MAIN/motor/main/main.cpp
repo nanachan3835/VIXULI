@@ -5,7 +5,7 @@
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "esp_err.h"
-#include "state.h"
+//#include "state.h"
 #include "driver/adc.h"
 #include "sdkconfig.h"
 #include "freertos/queue.h"
@@ -18,16 +18,15 @@
 #include "driver/i2c.h"
 
 
-
 //lcd 1602
-#define I2C_MASTER_NUM I2C_NUM_0               // I2C port number for master
-#define I2C_MASTER_SCL_IO 22                   // GPIO number for I2C SCL
-#define I2C_MASTER_SDA_IO 21                   // GPIO number for I2C SDA
-#define I2C_MASTER_FREQ_HZ 100000              // I2C master clock frequency
-#define LCD_ADDR 0x27                          // I2C address of the LCD with PCF8574
-#define WRITE_BIT I2C_MASTER_WRITE             // I2C master write
-#define ACK_CHECK_EN 0x1                       // Enable ACK check
-#define TAG "LCD1602"
+// #define I2C_MASTER_NUM I2C_NUM_0               // I2C port number for master
+// #define I2C_MASTER_SCL_IO 22                   // GPIO number for I2C SCL
+// #define I2C_MASTER_SDA_IO 21                   // GPIO number for I2C SDA
+// #define I2C_MASTER_FREQ_HZ 100000              // I2C master clock frequency
+// #define LCD_ADDR 0x27                          // I2C address of the LCD with PCF8574
+// #define WRITE_BIT I2C_MASTER_WRITE             // I2C master write
+// #define ACK_CHECK_EN 0x1                       // Enable ACK check
+// #define TAG "LCD1602"
 
 
 // Cấu hình GPIO
@@ -228,13 +227,13 @@ int convert_voltage_to_speed(uint32_t voltage) {
 void event_handler(void)
 {
 /////////////lcd 
-    ESP_LOGI(TAG, "Initializing I2C...");
-    ESP_ERROR_CHECK(i2c_master_init());
+    // ESP_LOGI(TAG, "Initializing I2C...");
+    // ESP_ERROR_CHECK(i2c_master_init());
 
-    ESP_LOGI(TAG, "Initializing LCD...");
-    ESP_ERROR_CHECK(lcd_init());
+    // ESP_LOGI(TAG, "Initializing LCD...");
+    // ESP_ERROR_CHECK(lcd_init());
     
-    ESP_LOGI(TAG, "Displaying message...");
+    // ESP_LOGI(TAG, "Displaying message...");
 /////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -259,7 +258,7 @@ void event_handler(void)
     configure_button();
     /////////////////////////////////////////////////main loop////////////////////
 
-    lcd_print(" NOOOBBBBB");
+    //lcd_print(" NOOOBBBBB");
     while(1)
     {
     int raw_value = adc1_get_raw(ADC_CHANNEL);
@@ -276,7 +275,7 @@ void event_handler(void)
         if (gpio_get_level(BUTTON_PIN_2) == 0)
             //Motor_state_1.CheckButton2() == 1)
         {
-            printf("Button 2 is not pressed\n");
+            printf("Button 2 is pressed\n");
 
             motor_set_speed(motor_speed);
             vTaskDelay(100 / portTICK_PERIOD_MS);   
@@ -295,7 +294,7 @@ void event_handler(void)
         if (gpio_get_level(BUTTON_PIN_2) == 0)
             //Motor_state_1.CheckButton2() == 1)
         {
-            printf("Button 2 is press pressed\n");
+            printf("Button 2 is pressed\n");
             speed_control_enabled = 1;
             while(1)
             {
@@ -306,7 +305,7 @@ void event_handler(void)
                 if(gpio_get_level(BUTTON_PIN_2) == 1)
                     //Motor_state_1.CheckButton2() == 0)
                 {
-                    printf("Button 2 is pressed\n");
+                    printf("Button 2 is not pressed\n");
                     break;
                 }
         }

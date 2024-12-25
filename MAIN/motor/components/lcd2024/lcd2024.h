@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef LCD2024_H
 #define LCD2024_H
 

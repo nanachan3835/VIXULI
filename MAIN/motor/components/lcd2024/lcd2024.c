@@ -1,5 +1,4 @@
-#include"lcd2024.h"
-
+#include "lcd2024.h"
 #include <stdio.h>
 #include "driver/i2c.h"
 #include "esp_log.h"

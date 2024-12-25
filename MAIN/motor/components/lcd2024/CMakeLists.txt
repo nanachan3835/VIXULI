@@ -1,3 +1,3 @@
-idf_component_register(SRCS "http_client.c"
+idf_component_register(SRCS "lcd2024.c"
                        INCLUDE_DIRS "."
                        REQUIRES driver)

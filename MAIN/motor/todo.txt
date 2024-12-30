@@ -1,0 +1,11 @@
+viet code de khi nut 1 ko dc bam thi in ra speed 
+viet code de khi nut 1 duoc bam thi in ra "dieu chinh toc do"
+viet code de check chieu cua motor bang cach in bam hoac tha nut 3
+viet code de gui du lieu khi nut 1 tha va nut 2 duoc bam\
+
+
+
+
+sau khi code:
+
+switch if tren bang 1 va if duoi bang 0

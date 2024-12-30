@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <inttypes.h> 
 #include "freertos/FreeRTOS.h"
@@ -5,7 +6,6 @@
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "esp_err.h"
-//#include "state.h"
 #include "driver/adc.h"
 #include "sdkconfig.h"
 #include "freertos/queue.h"
@@ -14,19 +14,24 @@
 #include "esp_sleep.h"
 #include "esp_adc_cal.h"
 //#include "driver/pcnt.h"
-#include "lcd2024.h"
+//#include "lcd.h"
 #include "driver/i2c.h"
+#include "string.h"
+#include "wifi_connect.h"
+
+
+
 
 
 //lcd 1602
-// #define I2C_MASTER_NUM I2C_NUM_0               // I2C port number for master
-// #define I2C_MASTER_SCL_IO 22                   // GPIO number for I2C SCL
-// #define I2C_MASTER_SDA_IO 21                   // GPIO number for I2C SDA
-// #define I2C_MASTER_FREQ_HZ 100000              // I2C master clock frequency
-// #define LCD_ADDR 0x27                          // I2C address of the LCD with PCF8574
-// #define WRITE_BIT I2C_MASTER_WRITE             // I2C master write
-// #define ACK_CHECK_EN 0x1                       // Enable ACK check
-// #define TAG "LCD1602"
+#define I2C_MASTER_NUM I2C_NUM_0               // I2C port number for master
+#define I2C_MASTER_SCL_IO 22                   // GPIO number for I2C SCL
+#define I2C_MASTER_SDA_IO 21                   // GPIO number for I2C SDA
+#define I2C_MASTER_FREQ_HZ 100000              // I2C master clock frequency
+#define LCD_ADDR 0x27                          // I2C address of the LCD with PCF8574
+#define WRITE_BIT I2C_MASTER_WRITE             // I2C master write
+#define ACK_CHECK_EN 0x1                       // Enable ACK check
+//#define TAG "LCD1602"
 
 
 // Cấu hình GPIO
@@ -37,10 +42,10 @@
 
 
 //nut bam
-#define BUTTON_PIN_1 GPIO_NUM_12 // Nút bấm
+#define BUTTON_PIN_1 GPIO_NUM_15// Nút bấm 1
 //#define LED_PIN GPIO_NUM_2    // LED
-#define BUTTON_PIN_2 GPIO_NUM_4 // Nút bấm
-#define BUTTON_PIN_3 GPIO_NUM_5 // Nút bấm
+#define BUTTON_PIN_2 GPIO_NUM_4 // Nút bấm 2
+#define BUTTON_PIN_3 GPIO_NUM_5 // Nút bấm 3
 
 // Cấu hình LEDC (PWM)
 #define LEDC_TIMER          LEDC_TIMER_0
@@ -65,7 +70,7 @@ volatile int speed_control_enabled = 1; // Cờ cho phép điều khiển tốc 
 
 
 // Biến lưu trạng thái tốc độ động cơ
-volatile int motor_speed = 0; // Tốc độ (-255 đến 255)
+volatile float motor_speed = 0; // Tốc độ (-255 đến 255)
 
 // Cờ trạng thái quay chiều
 volatile int last_clk_state = 0;
@@ -73,17 +78,129 @@ volatile int last_clk_state = 0;
 static const char *TAG = "MOTOR";
 
 ///////////////////////////////////////////////////////////////////
-
+//potentiometer
 #define ADC_CHANNEL    ADC1_CHANNEL_0 // GPIO36 (VP) by default
 #define ADC_WIDTH      ADC_WIDTH_BIT_12
-#define ADC_ATTEN      ADC_ATTEN_DB_11
+#define ADC_ATTEN      ADC_ATTEN_DB_12
 #define DEFAULT_VREF   1100 // Default VREF in mV (set according to your ESP32 board)
 
 static esp_adc_cal_characteristics_t *adc_chars;
 
 
 /////////////////////////////////////////////////////////////////
+//lcd 1602
 
+
+static esp_err_t i2c_master_init() {
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = I2C_MASTER_SDA_IO,
+        .scl_io_num = I2C_MASTER_SCL_IO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = I2C_MASTER_FREQ_HZ,
+    };
+    ESP_ERROR_CHECK(i2c_param_config(I2C_MASTER_NUM, &conf));
+    ESP_ERROR_CHECK(i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0));
+    return ESP_OK;
+}
+
+static esp_err_t i2c_send_data(uint8_t addr, uint8_t *data, size_t len) {
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    ESP_ERROR_CHECK(i2c_master_start(cmd));
+    ESP_ERROR_CHECK(i2c_master_write_byte(cmd, (addr << 1) | WRITE_BIT, ACK_CHECK_EN));
+    ESP_ERROR_CHECK(i2c_master_write(cmd, data, len, ACK_CHECK_EN));
+    ESP_ERROR_CHECK(i2c_master_stop(cmd));
+    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret;
+}
+
+// Send a command to the LCD
+static esp_err_t lcd_send_command(uint8_t cmd) {
+    uint8_t upper_nibble = (cmd & 0xF0) | 0x0C; // Enable = 1, RS = 0
+    uint8_t lower_nibble = ((cmd << 4) & 0xF0) | 0x0C;
+
+    uint8_t data[] = {
+        upper_nibble, (upper_nibble & ~0x04), // Enable = 0
+        lower_nibble, (lower_nibble & ~0x04)  // Enable = 0
+    };
+
+    return i2c_send_data(LCD_ADDR, data, sizeof(data));
+}
+
+// Send data to the LCD
+static esp_err_t lcd_send_data(uint8_t data) {
+    uint8_t upper_nibble = (data & 0xF0) | 0x0D; // Enable = 1, RS = 1
+    uint8_t lower_nibble = ((data << 4) & 0xF0) | 0x0D;
+
+    uint8_t payload[] = {
+        upper_nibble, (upper_nibble & ~0x04), // Enable = 0
+        lower_nibble, (lower_nibble & ~0x04)  // Enable = 0
+    };
+
+    return i2c_send_data(LCD_ADDR, payload, sizeof(payload));
+}
+
+// Initialize the LCD
+static esp_err_t lcd_init() {
+    ESP_ERROR_CHECK(lcd_send_command(0x33)); // Initialize in 4-bit mode
+    ESP_ERROR_CHECK(lcd_send_command(0x32)); // Set to 4-bit mode
+    ESP_ERROR_CHECK(lcd_send_command(0x28)); // 2-line, 5x7 matrix
+    ESP_ERROR_CHECK(lcd_send_command(0x0C)); // Display on, cursor off
+    ESP_ERROR_CHECK(lcd_send_command(0x06)); // Increment cursor
+    ESP_ERROR_CHECK(lcd_send_command(0x01)); // Clear display
+    vTaskDelay(5 / portTICK_PERIOD_MS);
+    return ESP_OK;
+}
+
+
+
+
+//set cursor
+static esp_err_t lcd_set_cursor(uint8_t row, uint8_t col) {
+    uint8_t address;
+
+    // Tính địa chỉ DDRAM dựa trên dòng và cột
+    switch (row) {
+        case 0:
+            address = 0x00 + col; // Dòng 1
+            break;
+        case 1:
+            address = 0x40 + col; // Dòng 2
+            break;
+        default:
+            return ESP_ERR_INVALID_ARG; // Dòng không hợp lệ
+    }
+
+    // Gửi lệnh đặt địa chỉ DDRAM
+    return lcd_send_command(0x80 | address);
+}
+
+//clear lcd
+static esp_err_t lcd_clear() {
+    esp_err_t ret = lcd_send_command(0x01); // Clear display command
+    vTaskDelay(5 / portTICK_PERIOD_MS);     // Wait for the command to complete
+    return ret;
+}
+
+// Print a string on the LCD
+static esp_err_t lcd_print(const char *str) {
+    lcd_clear();
+    while (*str) {
+        ESP_ERROR_CHECK(lcd_send_data((uint8_t)*str++));
+    }
+    return ESP_OK;
+}
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////
 
 
 void motor_control_init() {
@@ -152,7 +269,7 @@ void configure_button() {
     gpio_set_pull_mode(BUTTON_PIN_3, GPIO_PULLUP_ONLY);
 }
 
-
+//////////////////test nut bam////////////////////////
 ////////////////////////////////////////////////////////////////////
 //hàm sử lý logic
 
@@ -166,8 +283,8 @@ int button1_logic()
     {
         return 0;
     } 
-        
 }
+
 
 int button2_logic()
 {
@@ -180,6 +297,7 @@ int button2_logic()
         return 0;
 }
 }
+
 int button3_logic()
 {
     if (gpio_get_level(BUTTON_PIN_3) == 0)
@@ -203,21 +321,25 @@ int button3_logic()
 
 
 
-// Function to convert voltage to speed
-int convert_voltage_to_speed(uint32_t voltage) {
-    int speed;
-    if (voltage <= 1650) {
-        // Map 0 to 1650 mV to -255 to 0
-        speed = (voltage * -255) / 1650;
-    } else {
-        // Map 1650 to 3300 mV to 0 to 255
-        speed = ((voltage - 1650) * 255) / 1650;
-    }
+///////////////////////////////////////////////////// Function to convert voltage to speed
+float convert_voltage_to_speed(uint32_t voltage){
+    float speed;
+    speed = ((voltage-3129)* -268)/3129;
     return speed;
 }
 //////////////////////////////////////////////////////////////////////////
 
-
+// void motor_set_speed_by_button(int speed)
+// {
+//     if(speed_control_enabled == 1)
+//     {
+//         motor_set_speed(speed);
+//     }
+//     else
+//     {
+//         motor_set_speed(0);
+//     }
+//}
 
 
 
@@ -227,13 +349,13 @@ int convert_voltage_to_speed(uint32_t voltage) {
 void event_handler(void)
 {
 /////////////lcd 
-    // ESP_LOGI(TAG, "Initializing I2C...");
-    // ESP_ERROR_CHECK(i2c_master_init());
+    ESP_LOGI(TAG, "Initializing I2C...");
+    ESP_ERROR_CHECK(i2c_master_init());
 
-    // ESP_LOGI(TAG, "Initializing LCD...");
-    // ESP_ERROR_CHECK(lcd_init());
+    ESP_LOGI(TAG, "Initializing LCD...");
+    ESP_ERROR_CHECK(lcd_init());
     
-    // ESP_LOGI(TAG, "Displaying message...");
+    ESP_LOGI(TAG, "Displaying message...");
 /////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -253,59 +375,71 @@ void event_handler(void)
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    wifi_init_dhcp();
     motor_control_init();
-    //StateofMotor Motor_state_1(0,0,0,0,0);
     configure_button();
     /////////////////////////////////////////////////main loop////////////////////
-
-    //lcd_print(" NOOOBBBBB");
     while(1)
     {
+        printf("Button 1: %d\n", button1_logic());
+        printf("Button 2: %d\n", button2_logic());
+        printf("Button 3: %d\n", button3_logic());
+
+///////////////////////////////in lcd
+    char buffer[15];
+    snprintf(buffer,sizeof(buffer) ,"%f", motor_speed);
+    char str[] = "  Speed:";
+    char results_string[25];
+    snprintf(results_string, sizeof(results_string), "%s%s", str,buffer);
+    lcd_print(results_string);
+    ////////////////
     int raw_value = adc1_get_raw(ADC_CHANNEL);
     uint32_t voltage = esp_adc_cal_raw_to_voltage(raw_value, adc_chars);
-    printf("Raw: %d\tVoltage: %" PRIu32 "mV\tSpeed: %d\n", raw_value, voltage, motor_speed);
+    //motor_speed = convert_voltage_to_speed(voltage);
+    // printf("Raw: %d\tVoltage: %" PRIu32 "mV\tSpeed: %f\n", raw_value, voltage, motor_speed);
+    ////////////////////////////////////////////////////////
     
-
-
-    if(gpio_get_level(BUTTON_PIN_1) == 0)
-        //Motor_state_1.CheckButton1() == 0)
+    if(gpio_get_level(BUTTON_PIN_1) == 1)
     {
-        printf("Button 1 is pressed\n");
-        speed_control_enabled = 0;
+        //printf("Button 1 is pressed\n");
+        //speed_control_enabled = 0;
         if (gpio_get_level(BUTTON_PIN_2) == 0)
-            //Motor_state_1.CheckButton2() == 1)
         {
-            printf("Button 2 is pressed\n");
+            //printf("Button 2 is pressed\n");
 
-            motor_set_speed(motor_speed);
-            vTaskDelay(100 / portTICK_PERIOD_MS);   
+            //motor_set_speed(motor_speed);
+
+            lcd_print("  data sended");
+            vTaskDelay(1000 / portTICK_PERIOD_MS);   
         }
         else
         {
-            printf("Button 2 is not pressed\n");
-            motor_set_speed(0);
+            //printf("Button 2 is not pressed\n");
+            //motor_set_speed(0);
             vTaskDelay(100 / portTICK_PERIOD_MS);
         }
     }
     else
     {
-        printf("Button 1 is not pressed\n");
-        speed_control_enabled = 0;
+        //printf("Button 1 is not pressed\n");
+        //printf("speed_adjust_enabled: %d\n", speed_control_enabled);
+        //speed_control_enabled = 0;
         if (gpio_get_level(BUTTON_PIN_2) == 0)
-            //Motor_state_1.CheckButton2() == 1)
         {
-            printf("Button 2 is pressed\n");
-            speed_control_enabled = 1;
+            //printf("Button 2 is pressed\n");
+            //speed_control_enabled = 1;
             while(1)
             {
-
-                motor_speed = convert_voltage_to_speed(voltage);
-                motor_set_speed(motor_speed);
-                printf("Raw: %d\tVoltage: %" PRIu32 "mV\tSpeed: %d\n", raw_value, voltage, motor_speed);
+                // motor_speed = convert_voltage_to_speed(voltage);
+                // motor_set_speed(motor_speed);
+                // printf("Raw: %d\tVoltage: %" PRIu32 "mV\tSpeed: %f\n", raw_value, voltage, motor_speed);
                 if(gpio_get_level(BUTTON_PIN_2) == 1)
                     //Motor_state_1.CheckButton2() == 0)
                 {
-                    printf("Button 2 is not pressed\n");
+                    motor_speed = convert_voltage_to_speed(voltage);
+                    printf("MOTOR SPEED: %f\n", motor_speed);
+                    lcd_print("   save speed");
+                    vTaskDelay(1000 / portTICK_PERIOD_MS);
                     break;
                 }
         }
@@ -314,11 +448,12 @@ void event_handler(void)
         }
         else
         {
-            printf("Button 2 is not pressed\n");
+            //printf("Button 2 is not pressed\n");
             vTaskDelay(100 / portTICK_PERIOD_MS);
         }
 
     }
+
 }
 }
 
@@ -326,7 +461,7 @@ void event_handler(void)
 
 ////////////////////////////////////////////////////////////////////////////
 //
-extern "C" void app_main(void)
+void app_main(void)
 {
     event_handler();
     

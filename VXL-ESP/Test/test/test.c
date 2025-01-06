@@ -8,6 +8,17 @@
 #include "wifi_connect.h"
 #include "test_compo.h"
 
+
+#define WIFI_SSID "Hung Ha Dung"
+#define WIFI_PASSWORD "037275504"
+#define SERVER_HOST "192.168.1.230"
+#define SERVER_PORT "8000"
+#define STATIC_IP "192.168.1.240"
+#define GATEWAY "192.168.1.1"
+#define NETMASK "255.255.255.0"
+
+
+
 #define TAG "main"
 
 #define MIN(a, b) a < b ? a : b

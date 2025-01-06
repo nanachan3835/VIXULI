@@ -4,9 +4,19 @@
 #include "freertos/idf_additions.h"
 #include "http_server.h"
 #include "wifi_connect.h"
-#include <cerrno>
+#include <errno.h>
 #include <string.h>
 #include "cJSON.h"
+/**
+ * @file test_compo.c
+ * @brief This file is part of the test component for the VXL-ESP project.
+ * 
+ * This file includes the necessary headers and contains the implementation
+ * of the test component functionalities.
+ * 
+ * @author nanachanuwu
+ * @date [Insert Date]
+ */
 #include "time.h"
 #include "http_client.h"
 
@@ -71,7 +81,7 @@ int test(char* json) {
         cJSON_Delete(testJson);
         return -1;
     }
-    void* endptr;
+    void* endptr = NULL;
     float speed = strtof(speed_str, endptr);
     errno = 0;
     if (speed_str == endptr) {

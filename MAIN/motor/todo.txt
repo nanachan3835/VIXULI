@@ -9,3 +9,21 @@ viet code de gui du lieu khi nut 1 tha va nut 2 duoc bam\
 sau khi code:
 
 switch if tren bang 1 va if duoi bang 0
+
+
+
+
+báo cáo tiến độ:
+
+đã hoàn thành xong phần hiển thị và nhận tín hiệu, bh sẽ vào phần điều khiển motor:
+
+yêu cầu hôm nay:
+
+-code arduino điều khiển động cơ dc từ 3 nút bấm và potentiometer:
+-kiểm tra code trả và nhận tín hiệu , trả giao tiếp dữ liệu wifi của đức:
+-giao việc cho hiển và đức viết thêm phần mô tả arduino uno và bỏ phần encoder:
+-vẽ lại phần giao tiếp của sequence diagram:
+-quay video testing:
+-viết lí do thay đổi từ esp32 sang arduino để điều khiển động cơ:
+-thử chuyển phần hiển thị lcd sang cho arduino
+-mua i2c cho lcd

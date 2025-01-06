@@ -1,0 +1,1 @@
+idf.py -p com4 build flash monitor

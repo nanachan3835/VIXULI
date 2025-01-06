@@ -4,7 +4,7 @@
 #include "freertos/idf_additions.h"
 #include "http_server.h"
 #include "wifi_connect.h"
-#include <cerrno>
+#include <errno.h>
 #include <string.h>
 #include "cJSON.h"
 #include "time.h"
@@ -71,7 +71,7 @@ int test(char* json) {
         cJSON_Delete(testJson);
         return -1;
     }
-    void* endptr;
+    void* endptr = NULL;
     float speed = strtof(speed_str, endptr);
     errno = 0;
     if (speed_str == endptr) {

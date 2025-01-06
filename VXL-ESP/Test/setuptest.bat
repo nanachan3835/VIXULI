@@ -1,0 +1,8 @@
+set WIFI_SSID="duc"
+set WIFI_PASSWORD="nhatduc2003"
+set SERVER_HOST="192.168.1.230"
+set SERVER_PORT="8000"
+set STATIC_IP="192.168.1.240"
+set GATEWAY="192.168.1.1"
+set NETMASK="255.255.255.0"
+rmdir /s build

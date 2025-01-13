@@ -6,10 +6,13 @@
 #include "esp_task_wdt.h"
 
 #define BUF_SIZE 128
+const uart_port_t uart_num = UART_NUM_2;
 
-void app_main(void) {
-    const uart_port_t uart_num = UART_NUM_2;
-    uart_config_t uart_config = {
+
+
+void uart_init()
+{
+     uart_config_t uart_config = {
         .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
         .parity    = UART_PARITY_DISABLE,
@@ -23,6 +26,15 @@ void app_main(void) {
     const int uart_buffer_size = (1024 * 2);
     QueueHandle_t uart_queue;
     ESP_ERROR_CHECK(uart_driver_install(UART_NUM_2, uart_buffer_size, uart_buffer_size, 10, &uart_queue, 0));
+}
+
+
+
+
+void app_main(void) {
+    //const uart_port_t uart_num = UART_NUM_2;
+    //khoi tao uart
+    uart_init();
     
     uint8_t data[BUF_SIZE];
 
@@ -33,9 +45,6 @@ void app_main(void) {
             uart_write_bytes(uart_num, (const char*)data, len);
             uart_flush(uart_num);
         }
-
-        // Gọi chức năng reset WDT sau mỗi chu kỳ thực hiện task.
-        //esp_task_wdt_reset();
 
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }

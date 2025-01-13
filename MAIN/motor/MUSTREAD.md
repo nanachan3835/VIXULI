@@ -1,23 +1,18 @@
-# ** CAC CHAN CAM VAO ESP **
+# CAC CHAN CAM 
+## ESP
 
-## MOTOR
+- TX = CHAN 4 : Đầu vào TX của UART
+- GX = CHAN 5 : Đầu ra GX của UART
+- GND  : nối chung với GND của ARDUINO để  đồng bộ tín hiệu
 
-- IN1 = CHAN 25
-- IN2 = CHAN 26
-- ENABLE = CHAN 27
+## ARDUINO 
 
-## BUTTON
-
-- BUTTON 1 = CHAN 12
-- BUTTON 2 = CHAN 4
-- BUTTON 3 = CHAN 5
-
-## NUM XOAY 
-
-- TINHIEU = VP
-- "+" = 3V3
-- "-" = GND
-
+- motorEnable = 9 : Chân PWM điều khiển tốc độ động cơ 
+- motorIn1 = 8 : Chân điều khiển chiều động cơ
+- motorIn2 = 10 : Chân điều khiển chiều động cơ
+- button  = 7,6,5 : Các chân tương ứng với nút bấm 1 2 3 
+- potentiometer = A0 : chân analog nhận tín hiệu digital
+- Numreadings = 2 : chân đọc giá trị cảm biến quang trở tốc độ
 
 # ESP32 controller medium
 Project used for a ESP32 device that acts as a medium between motor controller and a broker server.
@@ -168,113 +163,57 @@ The HTTP server listens for incoming HTTP requests and handles them.
 ### test_compo
 For testing
 
-### Motor 
+### UART 
+- Method
+1. `uart_init():`
+```c
+void uart_init()
+{
+     uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .rx_flow_ctrl_thresh = 122,
+    };
+    ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
 
-- Methods:
+    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_2, 4, 5, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+    const int uart_buffer_size = (1024 * 2);
+    QueueHandle_t uart_queue;
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_2, uart_buffer_size, uart_buffer_size, 10, &uart_queue, 0));
+}
+```
 
-    1. `motor_control_init()`:
-        ```c
-        void motor_control_init() {
-        // Cấu hình Timer cho LEDC
-        ledc_timer_config_t ledc_timer = {
-                .speed_mode       = LEDC_MODE,
-                .duty_resolution  = LEDC_RESOLUTION,
-                .timer_num        = LEDC_TIMER,
-                .freq_hz          = LEDC_FREQUENCY,
-                .clk_cfg          = LEDC_AUTO_CLK
-        };
-        ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
+- Initialize uart resource
 
-        // Cấu hình kênh PWM cho LEDC
-         ledc_channel_config_t ledc_channel = {
-        .gpio_num       = LEDC_OUTPUT_IO,
-        .speed_mode     = LEDC_MODE,
-        .channel        = LEDC_CHANNEL,
-        .intr_type      = LEDC_INTR_DISABLE,
-        .timer_sel      = LEDC_TIMER,
-        .duty           = 0, // Bắt đầu với duty cycle 0
-        .hpoint         = 0
-        };  
-        ```
-    Initialize resource to run motor.
+2. `Data process`
+- Use this to create a buffer for store data
+```c
+uint8_t data[BUF_SIZE];
+```
+- Use this to get data 
+```c
+int len = uart_read_bytes(uart_num, data, BUF_SIZE, 100 / portTICK_PERIOD_MS);
+```
+- Use this to free the memory if data is not use
+```c
+uart_flush(uart_num);
+```
 
-    2. ` motor_set_speed() `
-        ```c
-        void motor_set_speed(int speed) 
-        ``` 
-        Set speed for motor
+# ARDUINO_UNO CONTROLLER 
 
-        __Caution:__
-         
-        The speed is between -255 to 255, if more or less than that, it will set the Maximum |speed| = 255. 
+## Installation and prequesite
+- LiquidCrystal_I2C.h lib
+- ArduinoJson.h lib 
 
-        And the rotate direction of motor depend on the speed is ">" or "<" 0.
-    
-    __USING ORDER__
-    1. First init()
-    2. Then you can setting motor speed in any function you want
+## CODE 
+- please refer to : https://github.com/nanachan3835/VIXULI/blob/main/CODE-ARDUINO-IDE/main/sketch_dec29a/sketch_dec29a.ino for more detail 
 
-### BUTTON
 
-- Methods: 
-    `configure_button()`:
 
-    ```c
-    void configure_button() {
-    gpio_set_direction(BUTTON_PIN_1, GPIO_MODE_INPUT);
-    gpio_set_pull_mode(BUTTON_PIN_1, GPIO_PULLUP_ONLY);
-    gpio_set_direction(BUTTON_PIN_2, GPIO_MODE_INPUT);
-    gpio_set_pull_mode(BUTTON_PIN_2, GPIO_PULLUP_ONLY);
-    gpio_set_direction(BUTTON_PIN_3, GPIO_MODE_INPUT);
-    gpio_set_pull_mode(BUTTON_PIN_3, GPIO_PULLUP_ONLY);
-    }
-    ```
-    Init 3 button for project
 
-    
-
-### Potentiometer
-
-- Methods: 
-  
-  1. Init potentiometer:
-  ```c
-  // Allocate memory for ADC characteristics
-    adc_chars = (esp_adc_cal_characteristics_t *)calloc(1, sizeof(esp_adc_cal_characteristics_t));
-
-    // Configure ADC width and attenuation
-    adc1_config_width(ADC_WIDTH);
-    adc1_config_channel_atten(ADC_CHANNEL, ADC_ATTEN);
-
-    // Characterize ADC
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN, ADC_WIDTH, DEFAULT_VREF, adc_chars);
-    ```
-   2. get value of potentiometer:
-   ```c
-   int raw_value = adc1_get_raw(ADC_CHANNEL);
-   uint32_t voltage = esp_adc_cal_raw_to_voltage(raw_value, adc_chars);
-    ```
-    Must put this in while() loop at running function
-
-    The voltage value is to config speed for motor
-
-    3. convert_voltage_to_speed() 
-    ```c
-    int convert_voltage_to_speed(uint32_t voltage) {
-    int speed;
-    if (voltage <= 1650) {
-        // Map 0 to 1650 mV to -255 to 0
-        speed = (voltage * -255) / 1650;
-    } else {
-        // Map 1650 to 3300 mV to 0 to 255
-        speed = ((voltage - 1650) * 255) / 1650;
-    }
-    return speed;
-    }
-    ```
-    Change voltage to speed to set speed for motor 
-
-    uint32_t for surely set voltage even it take 32bit memory(change later)
 
 # REFERENCE 
 

@@ -301,6 +301,7 @@ esp_err_t sync_time() {
 
 esp_err_t wifi_disconnect()
 {
+    if (!is_connect) return ESP_OK;
     if (s_wifi_event_group)
     {
         vEventGroupDelete(s_wifi_event_group);
@@ -314,6 +315,7 @@ esp_err_t wifi_disconnect()
 
 esp_err_t wifi_free()
 {
+    if (!is_init) return ESP_OK;
     esp_err_t ret = esp_wifi_stop();
     if (ret == ESP_ERR_WIFI_NOT_INIT)
     {

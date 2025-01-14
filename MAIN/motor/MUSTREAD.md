@@ -87,6 +87,23 @@ The HTTP server listens for incoming HTTP requests and handles them.
 
     Please check out this example: https://github.com/espressif/esp-idf/blob/master/examples/protocols/http_server/simple/main/main.c to learn more about how to create a callback.
 
+   __Advance__
+   ```c
+   httpd_handle_t on_get_with_data_async(
+    const char* path, 
+    const char* res_data, 
+    esp_err_t(*handler) (httpd_req_t* req) 
+   );
+   ```
+   This function register a path, data, and call back to server. We can use this when registering for the first time ( recommend register for one time only before main which loop ).
+
+   The data will automatically update when refresh the web page
+   ```c
+   void disconnect_server(httpd_handle_t server)
+   ```
+   After the job done, we need to free the resource so we can use this function.
+
+   PLease use this function after which loop.
 ### Wi-Fi connection & Time sync
  - Import
     ``` c

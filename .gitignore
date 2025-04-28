@@ -3,3 +3,9 @@
 sdkconfig
 sdkconfig.*
 **/.cache/
+**/.devcontainer/
+**/.vscode/
+README.md
+.ci
+.old
+.lock
